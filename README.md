@@ -1,8 +1,8 @@
 # IoT Application Development - RTOS Project on Yolo Uno ESP32
 
-> **Course:** Internet of Things Application Development (CO3039)
-> **Institution:** Ho Chi Minh City University of Technology (HCMUT)
-> **Advisor:** Dr. Le Trong Nhan
+**Course:** Internet of Things Application Development (CO3039)
+**Institution:** Ho Chi Minh City University of Technology (HCMUT)
+**Advisor:** Dr. Le Trong Nhan
 
 ---
 
