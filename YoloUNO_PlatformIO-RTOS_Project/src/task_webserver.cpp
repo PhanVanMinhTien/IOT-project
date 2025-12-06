@@ -10,11 +10,11 @@ void Webserver_sendata(String data)
     if (ws.count() > 0)
     {
         ws.textAll(data); // Gửi đến tất cả client đang kết nối
-        Serial.println("📤 Đã gửi dữ liệu qua WebSocket: " + data);
+        //Serial.println("📤 Đã gửi dữ liệu qua WebSocket: " + data);
     }
     else
     {
-        Serial.println("⚠️ Không có client WebSocket nào đang kết nối!");
+        //Serial.println("⚠️ Không có client WebSocket nào đang kết nối!");
     }
 }
 
@@ -42,20 +42,46 @@ void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType 
     }
 }
 
+// void connnectWSV()
+// {
+//     ws.onEvent(onEvent);
+//     server.addHandler(&ws);
+//     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
+//               { request->send(LittleFS, "/index.html", "text/html"); });
+//     server.on("/script.js", HTTP_GET, [](AsyncWebServerRequest *request)
+//               { request->send(LittleFS, "/script.js", "application/javascript"); });
+//     server.on("/styles.css", HTTP_GET, [](AsyncWebServerRequest *request)
+//               { request->send(LittleFS, "/styles.css", "text/css"); });
+//     server.begin();
+//     ElegantOTA.begin(&server);
+//     webserver_isrunning = true;
+// }
 void connnectWSV()
 {
     ws.onEvent(onEvent);
     server.addHandler(&ws);
+
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
               { request->send(LittleFS, "/index.html", "text/html"); });
+
     server.on("/script.js", HTTP_GET, [](AsyncWebServerRequest *request)
               { request->send(LittleFS, "/script.js", "application/javascript"); });
+
     server.on("/styles.css", HTTP_GET, [](AsyncWebServerRequest *request)
               { request->send(LittleFS, "/styles.css", "text/css"); });
+
+    //
+    server.on("/raphael.min.js", HTTP_GET, [](AsyncWebServerRequest *request)
+              { request->send(LittleFS, "/raphael.min.js", "application/javascript"); });
+
+    server.on("/justgage.min.js", HTTP_GET, [](AsyncWebServerRequest *request)
+              { request->send(LittleFS, "/justgage.min.js", "application/javascript"); });
+
     server.begin();
     ElegantOTA.begin(&server);
     webserver_isrunning = true;
 }
+
 
 void Webserver_stop()
 {
@@ -71,4 +97,19 @@ void Webserver_reconnect()
         connnectWSV();
     }
     ElegantOTA.loop();
+}
+
+
+void Webserver_sendSensor(float t, float h) {
+    StaticJsonDocument<128> doc;
+    doc["page"] = "home";
+
+    JsonObject val = doc.createNestedObject("value");
+    val["temp"] = t;
+    val["humi"] = h;
+
+    String payload;
+    serializeJson(doc, payload);
+
+    Webserver_sendata(payload);
 }

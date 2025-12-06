@@ -14,7 +14,6 @@
 
 
 
-
 String mainPage();
 String settingsPage();
 

@@ -1,4 +1,10 @@
 #include <task_handler.h>
+#include <ArduinoJson.h>
+#include "led_blinky.h"      
+#include "task_handler.h"
+
+
+static const int BUILTIN_LED_CHANNEL = 0;
 
 void handleWebSocketMessage(String message)
 {
@@ -8,11 +14,15 @@ void handleWebSocketMessage(String message)
     DeserializationError error = deserializeJson(doc, message);
     if (error)
     {
-        Serial.println("❌ Lỗi parse JSON!");
+        Serial.println("❌ Error parse JSON!");
         return;
     }
+
     JsonObject value = doc["value"];
-    if (doc["page"] == "device")
+    String page = doc["page"].as<String>();
+
+    // ==================== ĐIỀU KHIỂN GPIO (page = "device") ====================
+    if (page == "device")
     {
         if (!value.containsKey("gpio") || !value.containsKey("status"))
         {
@@ -36,13 +46,14 @@ void handleWebSocketMessage(String message)
             Serial.printf("💤 GPIO %d OFF\n", gpio);
         }
     }
-    else if (doc["page"] == "setting")
+    // ==================== LƯU CẤU HÌNH (page = "setting") ====================
+    else if (page == "setting")
     {
-        String WIFI_SSID = doc["value"]["ssid"].as<String>();
-        String WIFI_PASS = doc["value"]["password"].as<String>();
-        String CORE_IOT_TOKEN = doc["value"]["token"].as<String>();
-        String CORE_IOT_SERVER = doc["value"]["server"].as<String>();
-        String CORE_IOT_PORT = doc["value"]["port"].as<String>();
+        String WIFI_SSID       = value["ssid"].as<String>();
+        String WIFI_PASS       = value["password"].as<String>();
+        String CORE_IOT_TOKEN  = value["token"].as<String>();
+        String CORE_IOT_SERVER = value["server"].as<String>();
+        String CORE_IOT_PORT   = value["port"].as<String>();
 
         Serial.println("📥 Nhận cấu hình từ WebSocket:");
         Serial.println("SSID: " + WIFI_SSID);
@@ -57,5 +68,38 @@ void handleWebSocketMessage(String message)
         // Phản hồi lại client (tùy chọn)
         String msg = "{\"status\":\"ok\",\"page\":\"setting_saved\"}";
         ws.textAll(msg);
+    }
+
+    // ==================== ĐIỀU CHỈNH ĐỘ SÁNG (page = "home") ====================
+    else if (page == "home")
+    {
+        String type = value["type"].as<String>();
+        if (type != "brightness")
+        {
+            return;
+        }
+
+        String target = value["target"].as<String>();
+        int level     = value["level"] | 0;
+        level = constrain(level, 0, 255);
+
+        if (target == "builtin")
+        {
+            if (qBuiltinBrightness != nullptr)
+            {
+                xQueueOverwrite(qBuiltinBrightness, &level);
+            }
+        }
+        else if (target == "neo")
+        {
+            if (qNeoBrightness != nullptr)
+            {
+                xQueueOverwrite(qNeoBrightness, &level);
+            }
+        }
+        else
+        {
+            //
+        }
     }
 }

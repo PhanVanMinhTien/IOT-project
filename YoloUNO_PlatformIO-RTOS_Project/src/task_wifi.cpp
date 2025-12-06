@@ -2,11 +2,17 @@
 
 void startAP()
 {
-    WiFi.mode(WIFI_AP);
+    WiFi.disconnect(true, true);  
+    WiFi.mode(WIFI_AP);   // hoặc WIFI_AP_STA nếu muốn giữ STA luôn
     WiFi.softAP(String(SSID_AP), String(PASS_AP));
-    Serial.print("AP IP: ");
-    Serial.println(WiFi.softAPIP());
+
+    Serial.println("📡 Chuyển sang AP mode để cấu hình:");
+    Serial.print("    SSID: "); Serial.println(SSID_AP);
+    Serial.print("    PASS: "); Serial.println(PASS_AP);
+    Serial.print("    AP IP: "); Serial.println(WiFi.softAPIP());
 }
+
+
 
 void startSTA()
 {
@@ -32,15 +38,45 @@ void startSTA()
     }
     //Give a semaphore here
     xSemaphoreGive(xBinarySemaphoreInternet);
+    Serial.println("\n✅ Kết nối WiFi thành công!");
+    Serial.print("🌐 IP STA: ");
+    Serial.println(WiFi.localIP());
 }
+
+
+
+
 
 bool Wifi_reconnect()
 {
-    const wl_status_t status = WiFi.status();
+    static wl_status_t lastStatus = WL_DISCONNECTED;
+    wl_status_t status = WiFi.status();
+
     if (status == WL_CONNECTED)
     {
+        // Chỉ in khi vừa chuyển từ mất mạng -> có mạng
+        if (lastStatus != WL_CONNECTED)
+        {
+            Serial.println("✅ WiFi đã kết nối.");
+            Serial.print("🌐 IP STA: ");
+            Serial.println(WiFi.localIP());
+        }
+        lastStatus = status;
         return true;
     }
-    startSTA();
-    return false;
+
+    // Nếu trước đó là CONNECTED mà giờ mất thì báo 1 lần
+    if (lastStatus == WL_CONNECTED)
+    {
+        Serial.println("⚠️ Mất WiFi, thử reconnect...");
+    }
+
+    lastStatus = status;
+
+    // Thử kết nối lại
+    startSTA();   // hàm này cũng in IP khi kết nối xong
+
+    // Cập nhật lại trạng thái sau startSTA()
+    lastStatus = WiFi.status();
+    return (lastStatus == WL_CONNECTED);
 }

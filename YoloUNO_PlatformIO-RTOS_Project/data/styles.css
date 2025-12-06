@@ -67,8 +67,82 @@ body {
   gap            : 30px;
   justify-content: center;
 }
+/* ==== Sensor Cards (thay cho gauge tròn) ==== */
 
-.gauge-card {
+.sensor-card {
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(12px);
+  border-radius: 18px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
+  padding: 24px 26px;
+  width: 280px;
+  max-width: 90vw;
+  transition: background 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+}
+
+.sensor-card h2 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 20px;
+}
+
+.sensor-value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.sensor-value {
+  font-size: 36px;
+  font-weight: 700;
+}
+
+.sensor-unit {
+  font-size: 18px;
+  opacity: 0.7;
+}
+
+.sensor-status {
+  margin: 0;
+  font-size: 14px;
+  opacity: 0.85;
+}
+
+/* Trạng thái màu sắc */
+.sensor-card.normal {
+  background: rgba(76, 175, 80, 0.12);
+  border: 1px solid rgba(76, 175, 80, 0.25);
+}
+
+.sensor-card.warning {
+  background: rgba(255, 193, 7, 0.14);
+  border: 1px solid rgba(255, 193, 7, 0.28);
+}
+
+.sensor-card.critical {
+  background: rgba(244, 67, 54, 0.16);
+  border: 1px solid rgba(244, 67, 54, 0.3);
+}
+
+.sensor-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
+}
+
+/* Card điều khiển (brightness) – tái dùng sensor-card */
+.control-card input[type="range"] {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.control-card .sensor-status {
+  margin-top: 8px;
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+/* .gauge-card {
   background   : white;
   border-radius: 16px;
   box-shadow   : 0 6px 16px rgba(0, 0, 0, 0.1);
@@ -83,7 +157,7 @@ body {
   width : 260px;
   height: 260px;
   margin: 0 auto;
-}
+} */
 
 /* Device Page */
 .device-list {
@@ -146,7 +220,7 @@ body {
   position     : fixed;
   bottom       : 35px;
   right        : 35px;
-  background   : linear-gradient(135deg, #2294F2, #1a75e6);
+  background   : linear-gradient(135deg, #2294F2, #d1e5fd);
   color        : white;
   border       : none;
   border-radius: 50%;

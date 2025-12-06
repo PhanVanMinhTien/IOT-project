@@ -10,8 +10,8 @@
   <link rel="stylesheet" href="styles.css">
 
   <!-- Thư viện -->
-  <script src="https://cdn.jsdelivr.net/npm/raphael@2.3.0/raphael.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/justgage@1.3.5/justgage.min.js"></script>
+  <script src="raphael.min.js"></script>
+  <script src="justgage.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 
@@ -32,6 +32,7 @@
   </div>
 
   <!-- Nội dung chính -->
+    <!-- Nội dung chính -->
   <div class="main-content">
 
     <!-- TRANG CHỦ -->
@@ -42,14 +43,55 @@
       </header>
 
       <div class="gauges-container">
-        <div class="gauge-card">
-          <h2>🌡️ Nhiệt độ (°C)</h2>
-          <div id="gauge_temp"></div>
+        <!-- Card Nhiệt độ -->
+        <div class="sensor-card normal" id="card_temp">
+          <h2>🌡️ Nhiệt độ</h2>
+          <div class="sensor-value-row">
+            <span class="sensor-value" id="temp_value">--</span>
+            <span class="sensor-unit">°C</span>
+          </div>
+          <p class="sensor-status" id="temp_status">Đang chờ dữ liệu...</p>
         </div>
 
-        <div class="gauge-card">
-          <h2>💧 Độ ẩm (%)</h2>
-          <div id="gauge_humi"></div>
+        <!-- Card Độ ẩm -->
+        <div class="sensor-card normal" id="card_humi">
+          <h2>💧 Độ ẩm</h2>
+          <div class="sensor-value-row">
+            <span class="sensor-value" id="humi_value">--</span>
+            <span class="sensor-unit">%</span>
+          </div>
+          <p class="sensor-status" id="humi_status">Đang chờ dữ liệu...</p>
+        </div>
+        <!-- Card độ sáng LED on-board -->
+        <div class="sensor-card control-card" id="card_builtin_led">
+          <h2>💡 Độ sáng LED on-board</h2>
+          <input
+            type="range"
+            id="builtin_brightness"
+            min="0"
+            max="255"
+            value="128"
+            oninput="onBrightnessChange('builtin', this.value)"
+          />
+          <p class="sensor-status">
+            Độ sáng: <span id="builtin_brightness_label">128</span>/255
+          </p>
+        </div>
+
+        <!-- Card độ sáng NeoPixel -->
+        <div class="sensor-card control-card" id="card_neo_led">
+          <h2>🌈 Độ sáng NeoPixel</h2>
+          <input
+            type="range"
+            id="neo_brightness"
+            min="0"
+            max="255"
+            value="128"
+            oninput="onBrightnessChange('neo', this.value)"
+          />
+          <p class="sensor-status">
+            Độ sáng: <span id="neo_brightness_label">128</span>/255
+          </p>
         </div>
       </div>
     </div>
@@ -114,7 +156,9 @@
         </form>
       </div>
     </div>
-  </div>
+
+  </div> <!-- <-- ĐÓNG main-content Ở ĐÂY -->
+
 
   <!-- HỘP THOẠI THÊM RELAY -->
   <div id="addRelayDialog" class="dialog-overlay" style="display:none;">

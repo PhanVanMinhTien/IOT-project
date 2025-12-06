@@ -1,123 +1,169 @@
 #include "coreiot.h"
+#include "temp_humi_monitor.h"
 
-// ----------- CONFIGURE THESE! -----------
-const char* coreIOT_Server = "app.coreiot.io";  
-const char* coreIOT_Token = "g7drm1amhd3dchr379xu";   // Device Access Token
-const int   mqttPort = 1883;
-// ----------------------------------------
 
+// MQTT client
 WiFiClient espClient;
 PubSubClient client(espClient);
 
-
-void reconnect() {
-  // Loop until we're reconnected
-  while (!client.connected()) {
-    Serial.print("Attempting MQTT connection...");
-    // Attempt to connect (username=token, password=empty)
-    if (client.connect("ESP32Client", coreIOT_Token, NULL)) {
-      Serial.println("connected to CoreIOT Server!");
-      client.subscribe("v1/devices/me/rpc/request/+");
-      Serial.println("Subscribed to v1/devices/me/rpc/request/+");
-
-    } else {
-      Serial.print("failed, rc=");
-      Serial.print(client.state());
-      Serial.println(" try again in 5 seconds");
-      delay(5000);
-    }
-  }
-}
-
-
+// -------------------- RPC CALLBACK (giữ lại logic cũ) --------------------
 void callback(char* topic, byte* payload, unsigned int length) {
-  Serial.print("Message arrived [");
+  Serial.print("[CoreIOT] Message arrived [");
   Serial.print(topic);
   Serial.println("] ");
 
-  // Allocate a temporary buffer for the message
-  char message[length + 1];
+  // copy payload sang buffer có null-terminator
+  char message[256];
+  if (length >= sizeof(message)) length = sizeof(message) - 1;
   memcpy(message, payload, length);
   message[length] = '\0';
-  Serial.print("Payload: ");
+
+  Serial.print("[CoreIOT] Payload: ");
   Serial.println(message);
 
-  // Parse JSON
   StaticJsonDocument<256> doc;
   DeserializationError error = deserializeJson(doc, message);
-
   if (error) {
-    Serial.print("deserializeJson() failed: ");
+    Serial.print("[CoreIOT] deserializeJson() failed: ");
     Serial.println(error.c_str());
     return;
   }
 
   const char* method = doc["method"];
+  if (!method) {
+    Serial.println("[CoreIOT] No method in RPC payload");
+    return;
+  }
+
   if (strcmp(method, "setStateLED") == 0) {
-    // Check params type (could be boolean, int, or string according to your RPC)
-    // Example: {"method": "setValueLED", "params": "ON"}
     const char* params = doc["params"];
+    if (!params) {
+      Serial.println("[CoreIOT] No params in RPC payload");
+      return;
+    }
 
     if (strcmp(params, "ON") == 0) {
-      Serial.println("Device turned ON.");
-      //TODO
-
-    } else {   
-      Serial.println("Device turned OFF.");
-      //TODO
-
+      Serial.println("[CoreIOT] Device turned ON (RPC).");
+      // TODO: bật LED / thiết bị thực tế
+    } else {
+      Serial.println("[CoreIOT] Device turned OFF (RPC).");
+      // TODO: tắt LED / thiết bị thực tế
     }
   } else {
-    Serial.print("Unknown method: ");
+    Serial.print("[CoreIOT] Unknown method: ");
     Serial.println(method);
   }
 }
 
+// -------------------- MQTT RECONNECT --------------------
+static void mqttReconnect() {
+  while (!client.connected()) {
+    Serial.print("[CoreIOT] Attempting MQTT connection to ");
+    Serial.print(CORE_IOT_SERVER);
+    Serial.print(":");
+    Serial.print(CORE_IOT_PORT);
+    Serial.print(" ... ");
 
-void setup_coreiot(){
+    // username = token, password = NULL theo template CoreIOT
+    if (client.connect("ESP32Client", CORE_IOT_TOKEN.c_str(), nullptr)) {
+      Serial.println("connected!");
+      client.subscribe("v1/devices/me/rpc/request/+");
+      //client.subscribe("v1/devices/me/rpc/request/+");
 
-  //Serial.print("Connecting to WiFi...");
-  //WiFi.begin(wifi_ssid, wifi_password);
-  //while (WiFi.status() != WL_CONNECTED) {
-  
-  // while (isWifiConnected == false) {
-  //   delay(500);
-  //   Serial.print(".");
-  // }
-
-  while(1){
-    if (xSemaphoreTake(xBinarySemaphoreInternet, portMAX_DELAY)) {
-      break;
+      Serial.println("[CoreIOT] Subscribed v1/devices/me/rpc/request/+");
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(client.state());
+      Serial.println(" -> retry in 5 seconds");
+      vTaskDelay(pdMS_TO_TICKS(5000));
     }
-    delay(500);
-    Serial.print(".");
   }
-
-
-  Serial.println(" Connected!");
-
-  client.setServer(coreIOT_Server, mqttPort);
-  client.setCallback(callback);
-
 }
 
-void coreiot_task(void *pvParameters){
+// -------------------- SETUP COREIOT (chạy trong task) --------------------
+static void setup_coreiot() {
+  // 1) Chờ WiFi đã có Internet
+  Serial.println("[CoreIOT] Waiting for internet semaphore...");
+  if (xBinarySemaphoreInternet != nullptr) {
+    xSemaphoreTake(xBinarySemaphoreInternet, portMAX_DELAY);
+  }
 
-    setup_coreiot();
+  Serial.println("[CoreIOT] WiFi connected, starting MQTT client.");
 
-    while(1){
+  // 2) Kiểm tra cấu hình CoreIOT đã được nhập hay chưa
+  if (CORE_IOT_SERVER.isEmpty() || CORE_IOT_TOKEN.isEmpty() || CORE_IOT_PORT.isEmpty()) {
+    Serial.println("[CoreIOT] ERROR: CORE_IOT_SERVER / TOKEN / PORT rỗng.");
+    Serial.println("[CoreIOT] Hãy vào web config, nhập đầy đủ rồi reboot.");
+    // Không xoá task ngay, để log liên tục cũng được
+  }
+
+  // 3) Cài đặt server và callback
+  client.setServer(CORE_IOT_SERVER.c_str(), CORE_IOT_PORT.toInt());
+  client.setCallback(callback);
+}
+
+// -------------------- COREIOT TASK --------------------
+void coreiot_task(void *pvParameters) {
+    setup_coreiot();                      // chờ WiFi, set MQTT server, callback...
+
+    const TickType_t publishInterval = pdMS_TO_TICKS(10000); // 10s/lần
+
+    while (true) {
+        if (WiFi.status() != WL_CONNECTED) {
+            Serial.println("[CoreIOT] WiFi lost, waiting...");
+            vTaskDelay(pdMS_TO_TICKS(1000));
+            continue;
+        }
 
         if (!client.connected()) {
-            reconnect();
+            mqttReconnect();
         }
         client.loop();
 
-        // Sample payload, publish to 'v1/devices/me/telemetry'
-        String payload = "{\"temperature\":" + String(glob_temperature) +  ",\"humidity\":" + String(glob_humidity) + "}";
-        
-        client.publish("v1/devices/me/telemetry", payload.c_str());
+        // ==== LẤY GIÁ TRỊ TỪ QUEUE DHT ====
+        DHT_Data dhtData;
+        float t = 0;
+        float h = 0;
 
-        Serial.println("Published payload: " + payload);
-        vTaskDelay(10000);  // Publish every 10 seconds
+        if (xQueueDHT != nullptr &&
+            xQueuePeek(xQueueDHT, &dhtData, 0) == pdTRUE)
+        {
+            t = dhtData.temperature;
+            h = dhtData.humidity;
+        } else {
+            Serial.println("[CoreIOT] ⚠️ Không đọc được dữ liệu từ xQueueDHT, dùng giá trị 0.");
+        }
+
+        //
+        // Serial.print("[CoreIOT] t = ");
+        // Serial.print(t);
+        // Serial.print(", h = ");
+        // Serial.println(h);
+
+        // ==== PUBLISH LÊN CORE IOT ====
+        StaticJsonDocument<128> doc;
+        doc["temperature"] = t;
+        doc["humidity"]    = h;
+
+        char payload[128];
+        size_t n = serializeJson(doc, payload, sizeof(payload));
+
+        if (n > 0) {
+            bool ok = client.publish("v1/devices/me/telemetry", payload);
+            //bool ok = client.publish("esp/telemetry", payload);
+            if (ok) {
+                //Serial.print("[CoreIOT] Published telemetry: ");
+                //Serial.println(payload);
+            } else {
+                Serial.println("[CoreIOT] ❌ Failed to publish telemetry");
+            }
+        } else {
+            Serial.println("[CoreIOT] ❌ serializeJson() = 0");
+        }
+
+        vTaskDelay(publishInterval);
     }
 }
+
+
+
