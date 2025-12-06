@@ -88,8 +88,3 @@ Displays both numerical values and qualitative states on the LCD:
 2.  Connect to this WiFi and visit `192.168.4.1` in your browser.
 3.  Enter your WiFi SSID, Password, and CoreIoT Token.
 4.  Click **Save**. The device will reboot and connect to the internet.
-
-
----
-
-## 📂 Project Structure
